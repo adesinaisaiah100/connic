@@ -99,11 +99,11 @@ export default function LandingPage() {
               Now with Gemini 3 Pro
             </div>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white drop-shadow-sm">
-              Marketing Copy That <br className="hidden md:block" />
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-purple-600">Actually Converts</span>
+              Marketing Srategist <br className="hidden md:block" />
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-purple-600">Right In Your Hands</span>
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Stop posting generic AI content. Generate targeted campaigns tailored to specific audiences and optimized for every social platform in seconds.
+              Generate targeted campaigns tailored to specific audiences and optimized for every social platform in seconds.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
               <Link href="/register">
