@@ -1,10 +1,13 @@
 'use client'
 import Image from "next/image";
-import { useRef } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, CheckCircle2, Sparkles, Zap, Target, Share2, Star, Quote, ChevronRight } from "lucide-react"
-import { motion, useScroll } from "framer-motion"
+import { motion } from "framer-motion"
+import { createClient } from "@/lib/supabase/client"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const testimonials = [
   {
@@ -52,14 +55,57 @@ const workflowSteps = [
 ]
 
 export default function LandingPage() {
-  const containerRef = useRef(null)
-  useScroll({
-    target: containerRef,
-    offset: ["start start", "end end"]
-  })
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          router.push("/dashboard")
+        } else {
+          setIsLoading(false)
+        }
+      } catch (error) {
+        console.error("Error checking session:", error)
+        setIsLoading(false)
+      }
+    }
+
+    checkSession()
+  }, [router, supabase.auth])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <header className="border-b border-white/10 h-16 flex items-center px-4">
+          <div className="container mx-auto flex justify-between items-center">
+             <Skeleton className="h-8 w-32" />
+             <div className="flex gap-4">
+               <Skeleton className="h-10 w-20" />
+               <Skeleton className="h-10 w-24" />
+             </div>
+          </div>
+        </header>
+        <main className="flex-1 container mx-auto px-4 py-20 space-y-8">
+          <div className="max-w-4xl mx-auto space-y-8">
+            <Skeleton className="h-8 w-48 mx-auto rounded-full" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-6 w-2/3 mx-auto" />
+            <div className="flex justify-center">
+              <Skeleton className="h-12 w-48" />
+            </div>
+            <Skeleton className="h-64 w-full mt-16 rounded-xl" />
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
-    <div ref={containerRef} className="min-h-screen bg-transparent text-foreground flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-transparent text-foreground flex flex-col overflow-x-hidden">
       {/* Navbar */}
       <header className="border-b sticky top-0 bg-background/10 backdrop-blur-md z-50 border-white/10">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">

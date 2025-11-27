@@ -19,10 +19,10 @@ export function TikTokPreview({ content }: { content: string }) {
         <div className="flex items-end justify-between">
           <div className="flex-1 mr-12">
             <div className="font-semibold mb-2">@yourbrand</div>
-            <div className="text-sm leading-relaxed text-shadow-sm line-clamp-[8]">
+            <div className="text-sm leading-relaxed text-shadow-sm h-[280px] overflow-y-auto pr-2">
               <ReactMarkdown
                 components={{
-                  p: ({children}) => <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>,
+                  p: ({children}) => <p className="mb-2 last:mb-0 whitespace-pre-wrap text-white">{children}</p>,
                   strong: ({children}) => <span className="font-bold text-white">{children}</span>,
                   em: ({children}) => <span className="italic text-white/90">{children}</span>,
                   ul: ({children}) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
