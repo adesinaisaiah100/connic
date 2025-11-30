@@ -1,61 +1,31 @@
-'use client'
-import Image from "next/image";
-import { useEffect, useState } from "react"
-import Link from "next/link"
+"use client"
+
+import { useState, useEffect } from "react"
+import { useCompletion } from "@ai-sdk/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, CheckCircle2, Sparkles, Zap, Target, Share2, Star, Quote, ChevronRight } from "lucide-react"
-import { motion } from "framer-motion"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Sparkles, Copy, Check, Loader2, Twitter, Linkedin, Instagram, Video, Minus, Plus, LogOut, RefreshCw } from "lucide-react"
+import { TwitterPreview } from "@/components/previews/TwitterPreview"
+import { LinkedInPreview } from "@/components/previews/LinkedInPreview"
+import { InstagramPreview } from "@/components/previews/InstagramPreview"
+import { TikTokPreview } from "@/components/previews/TikTokPreview"
 import { createClient } from "@/lib/supabase/client"
 import { Skeleton } from "@/components/ui/skeleton"
 
-const testimonials = [
-  {
-    name: "Sarah Jenkins",
-    role: "Marketing Director",
-    company: "TechFlow",
-    content: "Connic AI has completely transformed our content strategy. We're producing 10x more content with higher engagement rates.",
-    avatar: "SJ"
-  },
-  {
-    name: "Marcus Chen",
-    role: "Founder",
-    company: "GrowthLabs",
-    content: "The ability to tailor content for specific platforms is a game changer. My LinkedIn engagement is up 300% since using Connic.",
-    avatar: "MC"
-  },
-  {
-    name: "Elena Rodriguez",
-    role: "Social Media Manager",
-    company: "Creative Co",
-    content: "Finally, an AI tool that understands brand voice. It doesn't sound robotic like the others. Highly recommended!",
-    avatar: "ER"
-  }
-]
-
-const workflowSteps = [
-  {
-    title: "Define Your Audience",
-    description: "Tell Connic who you're talking to. Be specific about demographics, interests, and pain points.",
-    icon: Target,
-    image: "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop"
-  },
-  {
-    title: "Choose Your Platform",
-    description: "Select where this content will live. Connic optimizes tone, length, and format for LinkedIn, Twitter, Instagram, and more.",
-    icon: Share2,
-    image: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1974&auto=format&fit=crop"
-  },
-  {
-    title: "Generate & Refine",
-    description: "Get instant variations. Tweak the tone, adjust the length, or ask for a complete rewrite in seconds.",
-    icon: Sparkles,
-    image: "https://images.unsplash.com/photo-1664575602554-2087b04935a5?q=80&w=1974&auto=format&fit=crop"
-  }
-]
-
-export default function LandingPage() {
-  const [isLoading, setIsLoading] = useState(true)
+export default function DashboardPage() {
+  const [audience, setAudience] = useState("General Public")
+  const [platform, setPlatform] = useState("Twitter")
+  const [tone, setTone] = useState("Professional")
+  const [useTrends, setUseTrends] = useState(false)
+  const [useEmojis, setUseEmojis] = useState(true)
+  const [copied, setCopied] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isCheckingSession, setIsCheckingSession] = useState(true)
+  
   const router = useRouter()
   const supabase = createClient()
 
@@ -63,21 +33,65 @@ export default function LandingPage() {
     const checkSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
-        if (session) {
-          router.push("/dashboard")
-        } else {
-          setIsLoading(false)
-        }
+        setIsLoggedIn(!!session)
       } catch (error) {
         console.error("Error checking session:", error)
-        setIsLoading(false)
+      } finally {
+        setIsCheckingSession(false)
       }
     }
 
     checkSession()
-  }, [router, supabase.auth])
+  }, [supabase.auth])
 
-  if (isLoading) {
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    setIsLoggedIn(false)
+    router.refresh()
+  }
+  
+  const { completion, input, setInput, handleInputChange, handleSubmit, isLoading, complete } = useCompletion({
+    api: '/api/generate',
+    body: {
+      audience,
+      platform,
+      tone,
+      useTrends,
+      useEmojis
+    },
+    onFinish: () => {
+      // Animate result in if needed
+    }
+  })
+
+  const handleRefine = (action: string) => {
+    if (!completion) return
+    const refinementPrompt = `Original: ${completion}\n\nTask: ${action}`
+    complete(refinementPrompt)
+  }
+
+  const handleCopyOrLogin = () => {
+    if (!isLoggedIn) {
+      router.push("/login")
+      return
+    }
+    
+    navigator.clipboard.writeText(completion)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const getPlatformIcon = (p: string) => {
+    switch(p) {
+      case "Twitter": return <Twitter className="w-5 h-5 text-blue-400" />
+      case "LinkedIn": return <Linkedin className="w-5 h-5 text-blue-700" />
+      case "Instagram": return <Instagram className="w-5 h-5 text-pink-600" />
+      case "TikTok": return <Video className="w-5 h-5 text-black dark:text-white" />
+      default: return <Sparkles className="w-5 h-5" />
+    }
+  }
+
+  if (isCheckingSession) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <header className="border-b border-white/10 h-16 flex items-center px-4">
@@ -85,302 +99,226 @@ export default function LandingPage() {
              <Skeleton className="h-8 w-32" />
              <div className="flex gap-4">
                <Skeleton className="h-10 w-20" />
-               <Skeleton className="h-10 w-24" />
              </div>
           </div>
         </header>
-        <main className="flex-1 container mx-auto px-4 py-20 space-y-8">
-          <div className="max-w-4xl mx-auto space-y-8">
-            <Skeleton className="h-8 w-48 mx-auto rounded-full" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-6 w-2/3 mx-auto" />
-            <div className="flex justify-center">
-              <Skeleton className="h-12 w-48" />
+        <main className="flex-1 container mx-auto px-4 py-8 grid md:grid-cols-2 gap-8">
+          <div className="space-y-6">
+            <Skeleton className="h-10 w-48" />
+            <Skeleton className="h-32 w-full" />
+            <div className="grid grid-cols-2 gap-4">
+               <Skeleton className="h-10 w-full" />
+               <Skeleton className="h-10 w-full" />
             </div>
-            <Skeleton className="h-64 w-full mt-16 rounded-xl" />
           </div>
+          <Skeleton className="h-[500px] w-full rounded-3xl" />
         </main>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-transparent text-foreground flex flex-col overflow-x-hidden">
-      {/* Navbar */}
-      <header className="border-b sticky top-0 bg-background/10 backdrop-blur-md z-50 border-white/10">
+    <div className="min-h-screen bg-transparent flex flex-col">
+      <header className="border-b bg-black/20 backdrop-blur-md sticky top-0 z-10 border-white/10">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold text-xl">
+          <div className="flex items-center gap-2 font-bold text-xl text-white">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
               <Sparkles size={18} />
             </div>
             Connic AI
           </div>
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
-            <Link href="#features" className="hover:text-primary transition-colors">Features</Link>
-            <Link href="#workflow" className="hover:text-primary transition-colors">How it Works</Link>
-            <Link href="#testimonials" className="hover:text-primary transition-colors">Testimonials</Link>
-          </nav>
           <div className="flex items-center gap-4">
-            <Link href="/login">
-              <Button variant="ghost">Log in</Button>
-            </Link>
-            <Link href="/register">
-              <Button>Get Started</Button>
-            </Link>
+            {isLoggedIn ? (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleSignOut}
+                className="text-white/70 hover:text-white hover:bg-white/10"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            ) : (
+              <Link href="/login">
+                <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+                  Log in
+                </Button>
+              </Link>
+            )}
+            {isLoggedIn && (
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-medium text-white">
+                U
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="py-20 md:py-32 px-4 overflow-hidden relative">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="container mx-auto max-w-4xl text-center space-y-8"
-          >
-            <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-white/20 bg-white/10 text-white hover:bg-white/20 backdrop-blur-sm">
-              <span className="flex h-2 w-2 rounded-full bg-primary mr-2"></span>
-              Now with Gemini 3 Pro
-            </div>
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white drop-shadow-sm">
-              Marketing Srategist <br className="hidden md:block" />
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-purple-600">Right In Your Hands</span>
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Generate targeted campaigns tailored to specific audiences and optimized for every social platform in seconds.
+      <main className="flex-1 container mx-auto px-4 py-8 grid md:grid-cols-2 gap-8">
+        {/* Input Section */}
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight mb-2 text-white">Create Campaign</h1>
+            <p className="text-muted-foreground">
+              Configure your target audience and platform to generate optimized copy.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-              <Link href="/register">
-                <Button size="lg" className="h-12 px-8 text-base gap-2 bg-white text-black hover:bg-gray-200">
-                  Start Creating Free <ArrowRight size={18} />
-                </Button>
-              </Link>
-            
-            </div>
-            
-            {/* Dashboard Preview */}
-            <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
-              className="mt-16 rounded-xl border border-white/10 bg-black/40 backdrop-blur-xl shadow-2xl overflow-hidden"
-            >
-               <div className="aspect-video bg-white/5 relative group">
-                  <Image 
-                    src="/dashboardprev.png" 
-                    alt="Connic AI Dashboard" 
-                    fill 
-                    className="object-cover object-top"
-                  />
-                  <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent opacity-60"></div>
-               </div>
-            </motion.div>
-          </motion.div>
-        </section>
-
-        {/* Features Section */}
-        <section id="features" className="py-20 bg-black/20 backdrop-blur-sm">
-          <div className="container mx-auto px-4">
-            <div className="text-center max-w-2xl mx-auto mb-16 space-y-4">
-              <h2 className="text-3xl font-bold tracking-tight">Everything you need to scale</h2>
-              <p className="text-muted-foreground">
-                Built for marketers who demand quality and speed.
-              </p>
-            </div>
-            <div className="grid md:grid-cols-3 gap-8">
-              {[
-                {
-                  title: "Audience Targeting",
-                  description: "Define personas and let AI craft messages that resonate with their specific pain points.",
-                  icon: Target
-                },
-                {
-                  title: "Platform Optimization",
-                  description: "Automatically format content for LinkedIn, Twitter, Instagram, and email newsletters.",
-                  icon: Share2
-                },
-                {
-                  title: "Brand Voice",
-                  description: "Train the AI on your previous content to maintain a consistent tone across all channels.",
-                  icon: Zap
-                }
-              ].map((feature, i) => (
-                <motion.div 
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.2 }}
-                  className="p-6 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors"
-                >
-                  <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-primary mb-4">
-                    <feature.icon size={24} />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
-                </motion.div>
-              ))}
-            </div>
           </div>
-        </section>
 
-        {/* Workflow Section - Alternating Layout with Scroll Animation */}
-        <section id="workflow" className="py-24 relative">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-20">
-              <h2 className="text-3xl md:text-5xl font-bold mb-6">How Connic Works</h2>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                From idea to published campaign in three simple steps.
-              </p>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-2">
+              <Label className="text-white">What are you promoting?</Label>
+              <Textarea 
+                placeholder="e.g. A new coffee shop opening in downtown Lagos with free wifi and student discounts..."
+                className="min-h-[120px] resize-none text-base bg-white/5 border-white/10 text-white placeholder:text-white/40 focus-visible:ring-white/20"
+                value={input}
+                onChange={handleInputChange}
+                required
+              />
             </div>
 
-            <div className="space-y-32">
-              {workflowSteps.map((step, index) => (
-                <motion.div 
-                  key={index}
-                  initial={{ opacity: 0, y: 50 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  transition={{ duration: 0.8 }}
-                  className={`flex flex-col ${index % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} items-center gap-12 md:gap-24`}
-                >
-                  <div className="flex-1 space-y-6">
-                    <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-primary text-2xl font-bold">
-                      {index + 1}
-                    </div>
-                    <h3 className="text-3xl md:text-4xl font-bold">{step.title}</h3>
-                    <p className="text-lg text-muted-foreground leading-relaxed">
-                      {step.description}
-                    </p>
-                    <ul className="space-y-3">
-                      {['Smart Analysis', 'Instant Generation', 'One-click Export'].map((item, i) => (
-                        <li key={i} className="flex items-center gap-3 text-sm text-gray-300">
-                          <CheckCircle2 size={16} className="text-primary" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="flex-1 w-full">
-                    <motion.div 
-                      whileHover={{ scale: 1.02 }}
-                      className="relative aspect-square md:aspect-4/3 rounded-3xl overflow-hidden border border-white/10 shadow-2xl"
-                    >
-                      <div className="absolute inset-0 bg-linear-to-tr from-primary/20 to-transparent mix-blend-overlay z-10"></div>
-                      <Image 
-                        src={step.image} 
-                        alt={step.title}
-                        fill
-                        className="object-cover"
-                      />
-                    </motion.div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Testimonials Section - Scroll Scale Effect */}
-        <section id="testimonials" className="py-24 bg-black/20 backdrop-blur-sm overflow-hidden">
-          <div className="container mx-auto px-4">
-            <h2 className="text-3xl md:text-5xl font-bold text-center mb-16">Loved by Marketers</h2>
-            
-            <div className="grid md:grid-cols-3 gap-8">
-              {testimonials.map((testimonial, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="p-8 rounded-2xl bg-white/5 border border-white/10 relative"
-                >
-                  <Quote className="absolute top-8 right-8 text-white/10" size={40} />
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-12 h-12 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center font-bold text-white">
-                      {testimonial.avatar}
-                    </div>
-                    <div>
-                      <h4 className="font-bold">{testimonial.name}</h4>
-                      <p className="text-sm text-muted-foreground">{testimonial.role}, {testimonial.company}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-1 mb-4 text-yellow-500">
-                    {[...Array(5)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
-                  </div>
-                  <p className="text-gray-300 leading-relaxed">
-                    &quot;{testimonial.content}&quot;
-                  </p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="py-24 relative overflow-hidden">
-          <div className="absolute inset-0 bg-primary/10 blur-[100px] -z-10"></div>
-          <div className="container mx-auto px-4 text-center max-w-3xl">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to transform your marketing?</h2>
-            <p className="text-xl text-muted-foreground mb-10">
-              Join thousands of marketers using Connic AI to create better content, faster.
-            </p>
-            <Link href="/register">
-              <Button size="lg" className="h-14 px-10 text-lg rounded-full bg-white text-black hover:bg-gray-200">
-                Get Started for Free <ChevronRight className="ml-2" />
-              </Button>
-            </Link>
-            <p className="mt-6 text-sm text-muted-foreground">No credit card required • 14-day free trial</p>
-          </div>
-        </section>
-      </main>
-
-      <footer className="py-12 border-t border-white/10 bg-black/40 backdrop-blur-xl">
-        <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 font-bold text-xl">
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground">
-                  <Sparkles size={18} />
-                </div>
-                Connic AI
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-white">Target Audience</Label>
+                <Select value={audience} onValueChange={setAudience}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white focus:ring-white/20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-neutral-900 border-white/10 text-white">
+                    <SelectItem value="General Public">General Public</SelectItem>
+                    <SelectItem value="University Students">University Students</SelectItem>
+                    <SelectItem value="Busy Parents">Busy Parents</SelectItem>
+                    <SelectItem value="Corporate Professionals">Corporate Professionals</SelectItem>
+                    <SelectItem value="Small Business Owners">Small Business Owners</SelectItem>
+                    <SelectItem value="Tech Enthusiasts">Tech Enthusiasts</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <p className="text-sm text-muted-foreground">
-                AI-powered marketing copy generator for modern teams.
-              </p>
+
+              <div className="space-y-2">
+                <Label className="text-white">Platform</Label>
+                <Select value={platform} onValueChange={setPlatform}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white focus:ring-white/20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-neutral-900 border-white/10 text-white">
+                    <SelectItem value="Twitter">Twitter / X</SelectItem>
+                    <SelectItem value="LinkedIn">LinkedIn</SelectItem>
+                    <SelectItem value="Instagram">Instagram</SelectItem>
+                    <SelectItem value="TikTok">TikTok (Script)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <h4 className="font-bold mb-4">Product</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="#" className="hover:text-white">Features</Link></li>
-                <li><Link href="#" className="hover:text-white">Pricing</Link></li>
-                <li><Link href="#" className="hover:text-white">API</Link></li>
-              </ul>
+
+            <div className="space-y-2">
+              <Label className="text-white">Tone of Voice</Label>
+              <Select value={tone} onValueChange={setTone}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white focus:ring-white/20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-neutral-900 border-white/10 text-white">
+                  <SelectItem value="Professional">Professional & Trustworthy</SelectItem>
+                  <SelectItem value="Casual">Casual & Friendly</SelectItem>
+                  <SelectItem value="Witty">Witty & Humorous</SelectItem>
+                  <SelectItem value="Urgent">Urgent (FOMO)</SelectItem>
+                  <SelectItem value="Empathetic">Empathetic & Understanding</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <h4 className="font-bold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="#" className="hover:text-white">About</Link></li>
-                <li><Link href="#" className="hover:text-white">Blog</Link></li>
-                <li><Link href="#" className="hover:text-white">Careers</Link></li>
-              </ul>
+
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5">
+                <Label className="text-white cursor-pointer" htmlFor="trends">Trend Injection</Label>
+                <button
+                  type="button"
+                  id="trends"
+                  onClick={() => setUseTrends(!useTrends)}
+                  className={`w-10 h-6 rounded-full transition-colors relative ${useTrends ? 'bg-primary' : 'bg-white/20'}`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-all ${useTrends ? 'left-5' : 'left-1'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5">
+                <Label className="text-white cursor-pointer" htmlFor="emojis">Use Emojis</Label>
+                <button
+                  type="button"
+                  id="emojis"
+                  onClick={() => setUseEmojis(!useEmojis)}
+                  className={`w-10 h-6 rounded-full transition-colors relative ${useEmojis ? 'bg-primary' : 'bg-white/20'}`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-all ${useEmojis ? 'left-5' : 'left-1'}`} />
+                </button>
+              </div>
             </div>
-            <div>
-              <h4 className="font-bold mb-4">Legal</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="#" className="hover:text-white">Privacy</Link></li>
-                <li><Link href="#" className="hover:text-white">Terms</Link></li>
-              </ul>
-            </div>
+
+            <Button type="submit" className="w-full h-12 text-base bg-white text-black hover:bg-gray-200" disabled={isLoading || !input}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Generate Copy
+                </>
+              )}
+            </Button>
+          </form>
+        </div>
+
+        {/* Output Section */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between h-[52px]">
+            <h2 className="text-xl font-semibold text-white">Preview</h2>
+            {completion && (
+              <Button variant="outline" size="sm" onClick={handleCopyOrLogin} className="border-white/20 bg-white/5 text-white hover:bg-white/10">
+                {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                {copied ? "Copied" : "Copy Text"}
+              </Button>
+            )}
           </div>
-          <div className="pt-8 border-t border-white/10 text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Connic AI. All rights reserved.
+
+
+
+          <div className="h-[calc(100%-80px)] rounded-3xl overflow-hidden border border-white/10 bg-black/20 backdrop-blur-md relative group">
+            <div className="absolute inset-0 bg-linear-to-b from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+            
+            {completion ? (
+              <div className="h-full overflow-y-auto p-6 custom-scrollbar flex flex-col">
+                <div className="flex-1 flex items-center justify-center min-h-[400px]">
+                  {platform === "Twitter" && <TwitterPreview content={completion} />}
+                  {platform === "LinkedIn" && <LinkedInPreview content={completion} />}
+                  {platform === "Instagram" && <InstagramPreview content={completion} />}
+                  {platform === "TikTok" && <TikTokPreview content={completion} />}
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-white/5 grid grid-cols-3 gap-3 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={() => handleRefine("Make it shorter")} className="text-xs text-muted-foreground hover:text-white hover:bg-white/10 h-9">
+                    <Minus className="w-3.5 h-3.5 mr-2" /> Shorten
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleRefine("Make it longer")} className="text-xs text-muted-foreground hover:text-white hover:bg-white/10 h-9">
+                    <Plus className="w-3.5 h-3.5 mr-2" /> Expand
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleRefine("Rewrite it completely")} className="text-xs text-muted-foreground hover:text-white hover:bg-white/10 h-9">
+                    <RefreshCw className="w-3.5 h-3.5 mr-2" /> Rewrite
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
+                <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center mb-6 border border-white/5 shadow-inner">
+                  <Sparkles className="w-10 h-10 opacity-20" />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">Ready to Create</h3>
+                <p className="text-sm max-w-xs mx-auto text-gray-400">
+                  Configure your audience and platform settings on the left to generate premium marketing copy.
+                </p>
+              </div>
+            )}
           </div>
         </div>
-      </footer>
+      </main>
     </div>
-  );
+  )
 }
