@@ -16,6 +16,24 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Connic AI - Marketing Copy That Converts",
   description: "Generate targeted marketing campaigns tailored to specific audiences and optimized for every social platform in seconds.",
+  icons: {
+    icon: "/icon.png",
+  },
+  openGraph: {
+    title: "Connic AI - Marketing Copy That Converts",
+    description: "Generate targeted marketing campaigns tailored to specific audiences and optimized for every social platform in seconds.",
+    url: "https://connic.ai",
+    siteName: "Connic AI",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
