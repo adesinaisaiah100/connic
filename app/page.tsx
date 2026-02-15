@@ -449,8 +449,8 @@ export default function DashboardPage() {
                     <p className="text-sm">No generations yet</p>
                   </div>
                 ) : (
-                  history.map((item) => (
-                    <div key={item.timestamp} className="p-3 rounded-lg border border-white/10 bg-white/5 space-y-2">
+                  history.map((item, index) => (
+                    <div key={`${item.timestamp}-${index}`} className="p-3 rounded-lg border border-white/10 bg-white/5 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {getPlatformIcon(item.platform)}
