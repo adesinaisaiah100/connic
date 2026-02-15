@@ -36,7 +36,9 @@ export default function DashboardPage() {
     try {
       const stored = localStorage.getItem("connic-history")
       if (stored) setHistory(JSON.parse(stored))
-    } catch {}
+    } catch (error) {
+      console.error("Failed to load history from localStorage:", error)
+    }
   }, [])
 
   useEffect(() => {
@@ -127,7 +129,7 @@ export default function DashboardPage() {
   const handleDownload = () => {
     if (!completion) return
     const date = new Date().toISOString().split("T")[0]
-    const filename = `connic-${platform.toLowerCase()}-${date}.txt`
+    const filename = `connic-${platform.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${date}.txt`
     const blob = new Blob([completion], { type: "text/plain" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
