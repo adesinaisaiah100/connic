@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useCompletion } from "@ai-sdk/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sparkles, Copy, Check, Loader2, Twitter, Linkedin, Instagram, Video, Minus, Plus, LogOut, RefreshCw } from "lucide-react"
+import { Sparkles, Copy, Check, Loader2, Twitter, Linkedin, Instagram, Video, Minus, Plus, LogOut, RefreshCw, Clock, Trash2, Download, X, ArrowRight, FileText } from "lucide-react"
+import { AnimatePresence, motion } from "framer-motion"
 import { TwitterPreview } from "@/components/previews/TwitterPreview"
 import { LinkedInPreview } from "@/components/previews/LinkedInPreview"
 import { InstagramPreview } from "@/components/previews/InstagramPreview"
@@ -25,9 +26,20 @@ export default function DashboardPage() {
   const [copied, setCopied] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isCheckingSession, setIsCheckingSession] = useState(true)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [history, setHistory] = useState<Array<{ prompt: string; content: string; platform: string; audience: string; tone: string; timestamp: string }>>([])
   
   const router = useRouter()
   const supabase = createClient()
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("connic-history")
+      if (stored) setHistory(JSON.parse(stored))
+    } catch (error) {
+      console.error("Failed to load history from localStorage:", error)
+    }
+  }, [])
 
   useEffect(() => {
     const checkSession = async () => {
@@ -59,8 +71,20 @@ export default function DashboardPage() {
       useTrends,
       useEmojis
     },
-    onFinish: () => {
-      // Animate result in if needed
+    onFinish: (_prompt, completion) => {
+      const entry = {
+        prompt: input,
+        content: completion,
+        platform,
+        audience,
+        tone,
+        timestamp: new Date().toISOString(),
+      }
+      setHistory(prev => {
+        const updated = [entry, ...prev].slice(0, 10)
+        localStorage.setItem("connic-history", JSON.stringify(updated))
+        return updated
+      })
     }
   })
 
@@ -90,6 +114,47 @@ export default function DashboardPage() {
       default: return <Sparkles className="w-5 h-5" />
     }
   }
+
+  const platformCharLimits: Record<string, number> = {
+    Twitter: 280,
+    LinkedIn: 3000,
+    Instagram: 2200,
+    TikTok: 2200,
+  }
+
+  const charLimit = platformCharLimits[platform] || 280
+  const charRatio = input.length / charLimit
+  const charColor = charRatio > 1 ? "text-red-400" : charRatio > 0.8 ? "text-yellow-400" : "text-muted-foreground"
+
+  const handleDownload = () => {
+    if (!completion) return
+    const date = new Date().toISOString().split("T")[0]
+    const filename = `connic-${platform.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${date}.txt`
+    const blob = new Blob([completion], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const clearHistory = () => {
+    setHistory([])
+    localStorage.removeItem("connic-history")
+  }
+
+  const loadHistoryItem = (item: typeof history[number]) => {
+    setInput(item.prompt)
+    setPlatform(item.platform)
+    setAudience(item.audience)
+    setTone(item.tone)
+    complete(item.prompt, { body: { audience: item.audience, platform: item.platform, tone: item.tone, useTrends, useEmojis } })
+    setHistoryOpen(false)
+  }
+
+  const wordCount = useMemo(() => completion ? completion.trim().split(/\s+/).filter(Boolean).length : 0, [completion])
+  const readingTime = useMemo(() => Math.max(1, Math.ceil(wordCount / 200)), [wordCount])
 
   if (isCheckingSession) {
     return (
@@ -128,6 +193,15 @@ export default function DashboardPage() {
             Connic AI
           </div>
           <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setHistoryOpen(true)}
+              className="text-white/70 hover:text-white hover:bg-white/10"
+            >
+              <Clock className="w-4 h-4 mr-2" />
+              History
+            </Button>
             {isLoggedIn ? (
               <Button 
                 variant="ghost" 
@@ -174,6 +248,9 @@ export default function DashboardPage() {
                 onChange={handleInputChange}
                 required
               />
+              <p className={`text-xs mt-1 ${charColor}`}>
+                {input.length} / {charLimit} for {platform}
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -272,10 +349,16 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between h-[52px]">
             <h2 className="text-xl font-semibold text-white">Preview</h2>
             {completion && (
-              <Button variant="outline" size="sm" onClick={handleCopyOrLogin} className="border-white/20 bg-white/5 text-white hover:bg-white/10">
-                {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                {copied ? "Copied" : "Copy Text"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleCopyOrLogin} className="border-white/20 bg-white/5 text-white hover:bg-white/10">
+                  {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                  {copied ? "Copied" : "Copy Text"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleDownload} className="border-white/20 bg-white/5 text-white hover:bg-white/10">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              </div>
             )}
           </div>
 
@@ -304,6 +387,10 @@ export default function DashboardPage() {
                     <RefreshCw className="w-3.5 h-3.5 mr-2" /> Rewrite
                   </Button>
                 </div>
+
+                <p className="mt-3 text-xs text-muted-foreground text-center">
+                  {wordCount} words · ~{readingTime} min read
+                </p>
               </div>
             ) : (
               <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8 text-center">
@@ -319,6 +406,73 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+
+      {/* History Slide-out Panel */}
+      <AnimatePresence>
+        {historyOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={() => setHistoryOpen(false)}
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed right-0 top-0 h-full w-full max-w-md bg-neutral-950 border-l border-white/10 z-50 flex flex-col"
+            >
+              <div className="flex items-center justify-between p-4 border-b border-white/10">
+                <div className="flex items-center gap-2 text-white font-semibold">
+                  <Clock className="w-5 h-5" />
+                  Generation History
+                </div>
+                <div className="flex items-center gap-2">
+                  {history.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={clearHistory} className="text-red-400 hover:text-red-300 hover:bg-white/10">
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Clear
+                    </Button>
+                  )}
+                  <Button variant="ghost" size="icon" onClick={() => setHistoryOpen(false)} className="text-white/70 hover:text-white hover:bg-white/10">
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {history.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-center">
+                    <FileText className="w-10 h-10 mb-3 opacity-20" />
+                    <p className="text-sm">No generations yet</p>
+                  </div>
+                ) : (
+                  history.map((item, index) => (
+                    <div key={`${item.timestamp}-${index}`} className="p-3 rounded-lg border border-white/10 bg-white/5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {getPlatformIcon(item.platform)}
+                          <span className="text-xs text-muted-foreground">{item.platform}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(item.timestamp).toLocaleDateString()} {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-white/80 line-clamp-2">{item.prompt}</p>
+                      <Button variant="ghost" size="sm" onClick={() => loadHistoryItem(item)} className="w-full text-xs text-muted-foreground hover:text-white hover:bg-white/10 h-8">
+                        <ArrowRight className="w-3.5 h-3.5 mr-2" />
+                        Load
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
