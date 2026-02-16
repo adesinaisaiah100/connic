@@ -2,20 +2,16 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { useCompletion } from "@ai-sdk/react"
-import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sparkles, Copy, Check, Loader2, Twitter, Linkedin, Instagram, Video, Minus, Plus, LogOut, RefreshCw, Clock, Trash2, Download, X, ArrowRight, FileText } from "lucide-react"
+import { Sparkles, Copy, Check, Loader2, Twitter, Linkedin, Instagram, Video, Minus, Plus, RefreshCw, Clock, Trash2, Download, X, ArrowRight, FileText } from "lucide-react"
 import { AnimatePresence, motion } from "framer-motion"
 import { TwitterPreview } from "@/components/previews/TwitterPreview"
 import { LinkedInPreview } from "@/components/previews/LinkedInPreview"
 import { InstagramPreview } from "@/components/previews/InstagramPreview"
 import { TikTokPreview } from "@/components/previews/TikTokPreview"
-import { createClient } from "@/lib/supabase/client"
-import { Skeleton } from "@/components/ui/skeleton"
 
 export default function DashboardPage() {
   const [audience, setAudience] = useState("General Public")
@@ -24,13 +20,8 @@ export default function DashboardPage() {
   const [useTrends, setUseTrends] = useState(false)
   const [useEmojis, setUseEmojis] = useState(true)
   const [copied, setCopied] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [isCheckingSession, setIsCheckingSession] = useState(true)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [history, setHistory] = useState<Array<{ prompt: string; content: string; platform: string; audience: string; tone: string; timestamp: string }>>([])
-  
-  const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
     try {
@@ -41,27 +32,6 @@ export default function DashboardPage() {
     }
   }, [])
 
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        setIsLoggedIn(!!session)
-      } catch (error) {
-        console.error("Error checking session:", error)
-      } finally {
-        setIsCheckingSession(false)
-      }
-    }
-
-    checkSession()
-  }, [supabase.auth])
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    setIsLoggedIn(false)
-    router.refresh()
-  }
-  
   const { completion, input, setInput, handleInputChange, handleSubmit, isLoading, complete } = useCompletion({
     api: '/api/generate',
     body: {
@@ -94,12 +64,7 @@ export default function DashboardPage() {
     complete(refinementPrompt)
   }
 
-  const handleCopyOrLogin = () => {
-    if (!isLoggedIn) {
-      router.push("/login")
-      return
-    }
-    
+  const handleCopy = () => {
     navigator.clipboard.writeText(completion)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -156,32 +121,6 @@ export default function DashboardPage() {
   const wordCount = useMemo(() => completion ? completion.trim().split(/\s+/).filter(Boolean).length : 0, [completion])
   const readingTime = useMemo(() => Math.max(1, Math.ceil(wordCount / 200)), [wordCount])
 
-  if (isCheckingSession) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <header className="border-b border-white/10 h-16 flex items-center px-4">
-          <div className="container mx-auto flex justify-between items-center">
-             <Skeleton className="h-8 w-32" />
-             <div className="flex gap-4">
-               <Skeleton className="h-10 w-20" />
-             </div>
-          </div>
-        </header>
-        <main className="flex-1 container mx-auto px-4 py-8 grid md:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <Skeleton className="h-10 w-48" />
-            <Skeleton className="h-32 w-full" />
-            <div className="grid grid-cols-2 gap-4">
-               <Skeleton className="h-10 w-full" />
-               <Skeleton className="h-10 w-full" />
-            </div>
-          </div>
-          <Skeleton className="h-[500px] w-full rounded-3xl" />
-        </main>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-transparent flex flex-col">
       <header className="border-b bg-black/20 backdrop-blur-md sticky top-0 z-10 border-white/10">
@@ -202,28 +141,6 @@ export default function DashboardPage() {
               <Clock className="w-4 h-4 mr-2" />
               History
             </Button>
-            {isLoggedIn ? (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleSignOut}
-                className="text-white/70 hover:text-white hover:bg-white/10"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
-            ) : (
-              <Link href="/login">
-                <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-                  Log in
-                </Button>
-              </Link>
-            )}
-            {isLoggedIn && (
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-sm font-medium text-white">
-                U
-              </div>
-            )}
           </div>
         </div>
       </header>
@@ -350,7 +267,7 @@ export default function DashboardPage() {
             <h2 className="text-xl font-semibold text-white">Preview</h2>
             {completion && (
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleCopyOrLogin} className="border-white/20 bg-white/5 text-white hover:bg-white/10">
+                <Button variant="outline" size="sm" onClick={handleCopy} className="border-white/20 bg-white/5 text-white hover:bg-white/10">
                   {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                   {copied ? "Copied" : "Copy Text"}
                 </Button>
